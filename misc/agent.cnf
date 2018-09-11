@@ -1,0 +1,20 @@
+[dn]
+countryName = XX
+stateOrProvinceName = SomeState
+localityName = SomeCity
+organizationalUnitName = My Company
+commonName = My Company Agent 1
+
+[alt_names]
+IP.1 = 127.0.0.1
+
+# don't edit below this line
+[req]
+prompt = no
+req_extensions = v3_req
+distinguished_name = dn
+
+[v3_req]
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+subjectAltName = @alt_names

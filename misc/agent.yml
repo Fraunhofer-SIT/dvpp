@@ -1,0 +1,8 @@
+Certificate: agent.crt
+Key: agent.key
+IP: 127.0.0.1
+Port: 8268
+Users:
+    username: password
+Whitelist:
+    - 127.0.0.0/8

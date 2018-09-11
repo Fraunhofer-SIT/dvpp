@@ -1,0 +1,14 @@
+Timeout: 1000
+Tolerance: 0
+PoolSize: 0
+Certificates: certs
+Agents:
+    Agent1:
+        Host: 127.0.0.1
+        Port: 8268
+        User: username
+        Pass: password
+    Agent2:
+        Host: 127.0.0.1
+        User: username
+        Pass: password
