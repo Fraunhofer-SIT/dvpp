@@ -1,20 +1,25 @@
-package main
+package agent
 
 import (
-	"dv++/validation/dns"
-	"flag"
 	"fmt"
-	"github.com/spf13/viper"
 	"log"
 	"math/rand"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/dvpp/dvpp/validation/dns"
+	"github.com/spf13/viper"
+	"github.com/urfave/cli"
 )
 
-var paths = []string{"/etc/dv++", os.Getenv("HOME") + "/.dv++", "."}
+var paths = []string{"."}
 
-type Config struct {
+type config interface {
+	parseConfig(*cli.Context) error
+}
+
+type configAgent struct {
 	ip        string
 	port      string
 	cert      string
@@ -23,8 +28,6 @@ type Config struct {
 	users     map[string]string
 	whitelist []string
 }
-
-var config Config
 
 func getFile(file string) (string, error) {
 	if file[0] == '/' {
@@ -44,25 +47,22 @@ func getFile(file string) (string, error) {
 	return "", fmt.Errorf("Cannot find file %s.", file)
 }
 
-func parseConfig() error {
-	logfile := flag.String("l", "", "Logfile")
-	conffile := flag.String("f", "", "Config file")
-	dnsflag := flag.String("d", "", "DNS servers")
-	flag.Parse()
-
-	if *logfile != "" {
+func (config *configAgent) parseConfig(c *cli.Context) error {
+	logfile := c.String("logfile")
+	if logfile != "" {
 		f, err := os.OpenFile(
-			*logfile,
+			logfile,
 			os.O_APPEND|os.O_CREATE|os.O_RDWR,
 			0666)
 		if err != nil {
-			return err
+			log.Fatal("Could not open logfile")
 		}
 		log.SetOutput(f)
 	}
 
-	if *conffile != "" {
-		viper.SetConfigFile(*conffile)
+	configFile := c.String("config")
+	if configFile != "" {
+		viper.SetConfigFile(configFile)
 	} else {
 		viper.SetConfigName("agent")
 
@@ -86,7 +86,7 @@ func parseConfig() error {
 		panic(err)
 	}
 
-	config = Config{
+	*config = configAgent{
 		ip:        viper.GetString("ip"),
 		port:      viper.GetString("port"),
 		cert:      cert,
@@ -95,9 +95,10 @@ func parseConfig() error {
 		whitelist: viper.GetStringSlice("whitelist"),
 	}
 
-	if *dnsflag != "" {
+	dnsflag := c.String("dns")
+	if dnsflag != "" {
 		rand.Seed(time.Now().Unix())
-		ds := strings.Split(*dnsflag, ",")
+		ds := strings.Split(dnsflag, ",")
 		config.dns = ds[rand.Intn(len(ds))]
 		if !strings.Contains(config.dns, ":") {
 			config.dns = config.dns + ":53"

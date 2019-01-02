@@ -3,8 +3,9 @@ package dns
 import (
 	"errors"
 	"fmt"
-	mdns "github.com/miekg/dns"
 	"net"
+
+	mdns "github.com/miekg/dns"
 )
 
 // GetLocalNameserver return the nameserver listed in resolv.conf as a string
@@ -30,7 +31,7 @@ func GetAuthoritativeNameServer(domain string, nameserver string) (string, error
 	}
 
 	if r.Rcode != mdns.RcodeSuccess {
-		return "", fmt.Errorf("Received DNS response code %d", r.Rcode)
+		return "", fmt.Errorf("received DNS response code %d", r.Rcode)
 	}
 
 	for _, a := range r.Answer {
@@ -41,7 +42,7 @@ func GetAuthoritativeNameServer(domain string, nameserver string) (string, error
 	}
 
 	if r.Ns == nil && len(r.Ns) < 1 {
-		return "", errors.New("Did not receive an authoritative name server")
+		return "", errors.New("did not receive an authoritative name server")
 	}
 
 	ns := r.Ns[0].(*mdns.SOA).Ns
@@ -57,5 +58,5 @@ func GetAuthoritativeNameServer(domain string, nameserver string) (string, error
 		}
 	}
 
-	return "", errors.New("Could not resolve A record")
+	return "", errors.New("could not resolve A record")
 }

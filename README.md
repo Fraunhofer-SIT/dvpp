@@ -1,5 +1,4 @@
-Domain Validation++
-===================
+# Domain Validation++
 
 ## Introduction
 
@@ -7,31 +6,27 @@ The Domain Validation++ is a distributed domain ownership verification aiming
 to prevent identity theft. This is done by comparing the result of multiple
 servers on the internet which perform the validation. It consists of two parts:
 the agents that perform the validation of a given domain and the orchestrator
-that coordinates the validation by sending validation requests to all agents
-and verifying the result.
+that coordinates the validation by sending validation requests to all agents,
+and verifying the results returned by the agents.
 
-The agent and orchestrator implementation are written in Go.  This does not
-only ensure a good performance it also allows the easy compilation and cross
-compilation of static executables.  Static executables allow an easy deployment
-without the need to install any runtimes or libraries.  Only the shell script
-to generate certificates requires OpenSSL or LibreSSL.
+The agent and orchestrator implementation are written in Go. This does not only
+ensure a good performance it also allows the easy compilation and cross compilation
+of static executables. Static executables allow an easy deployment without the need
+to install any runtimes or libraries. Only the shell script to generate certificates
+requires OpenSSL or LibreSSL.
 
 ## Compilation
 
-Copy the dv++ folder from src to the src folder of you go environment. Then
-issue the following commands.
-
-```
-  go get github.com/julienschmidt/httprouter
-  go get github.com/miekg/dns
-  go get github.com/spf13/viper
-  go build dv++/agent
-  go build dv++/orchestrator
+```bash
+  go get github.com/dvpp/dvpp
+  cd $GOPATH/src/github.com/dvpp/dvpp
+  dep ensure
+  go install 
 ```
 
 ## Overview
 
-image::https://cdn.rawgit.com/dvpp/dvpp/master/doc/images/overview.svg[Overview]
+![Overview](overview.svg)
 
 The orchestrator and the agents use HTTPS for their communication.  Currently,
 only one cipher suite is allowed, `TLS_RSA_WITH_AES_256_GCM_SHA384`, which is
@@ -40,7 +35,7 @@ debugging easier.
 
 Each agent has a self-signed certificate (can be generated with the included
 shell script) which are bound to the IP address.  Also it's possible to use
-domain names the use of domain names should be avoided. The orchestrator needs
+domain names, but the use of domain names should be avoided. The orchestrator needs
 to have a copy of every certificate from the vantage points it is using.  If
 the certificate used in the HTTPS connection is unknown for the orchestrator
 the connection will be canceled. The orchestrator does not include certificates
@@ -63,33 +58,36 @@ succeed.
 ## Agents
 
 The agent is a single executable and will try to load a configuration file upon
-start. It will search for `/etc/dv++/agent.yml`, `~/.dv++/agent.yml` and
-`./agent.yml`. If a configuration file is passed to the command line with the
+start. It will search for `./agent.yml`. If a configuration file is passed to the command line with the
 `-f' option it will use this as its configuration file.
 
 ### Usage
 
-```
-Usage of ./agent:
-  -d string
-        DNS servers
-  -f string
-        Config file
-  -l string
-        Logfile
+```bash
+NAME:
+   domainvalidation agent - Run an agent that performs the validation of a domain requested by the orchestrator.
+
+USAGE:
+   domainvalidation agent [command options] [arguments...]
+
+OPTIONS:
+   --dns value, -d value    DNS servers
+   --config FILE, -c FILE   Load configAgent file from FILE
+   --logfile FILE, -l FILE  Load log file from FILE
+
 ```
 
 The `-d` option will instruct the agent to use a supplied DNS server to
 initiate the initial DNS request. If this option is not supplied the value from
 /etc/resolv.conf will be used.  Multiple DNS servers need to be separated by a
 comma.  The agent will select a random DNS server then upon start.  It is also
-possible to supply or omit the DNS port like `./agent -d 8.8.8.8,8.8.4.4:53`.
+possible to supply or omit the DNS port like `domainvalidation agent -d 8.8.8.8,8.8.4.4:53`.
 As mentioned before the `-f` is used to supply a configuration file.  With the
 `-l` option the output is logged to a file.
 
 ### Configuration
 
-```
+```bash
 Certificate: agent.crt
 Key: agent.key
 IP: 127.0.0.1
@@ -111,21 +109,24 @@ This section can also be omitted to allow all IP addresses.
 ## Orchestrator
 
 Like the agent, the orchestrator is also single executable and will try to load
-a configuration file upon start. It will search for
-`/etc/dv++/orchestrator.yml`, `~/.dv++/orchestrator.yml` and
-`./orchestrator.yml`. If a configuration file is passed to the command line
-with the `-f' option it will use this as its configuration file.
+a configuration file upon start. It will search for `./orchestrator.yml`. If a 
+configuration file is passed to the command linewith the `-f' option it will use 
+this as its configuration file.
 
 ### Usage
 
-```
-Usage of ./orchestrator:
-  -f string
-        Config file (default "orchestrator.yml")
-  -l string
-        Logfile
-  -v    Verbose output
-  -x    XML output
+```bash
+NAME:
+   dvpp orchestrator - Run the orchestrator that coordinates the validation by sending validation requests to all agents and verifying the result
+
+USAGE:
+   dvpp orchestrator [command options] cname <domain> <challenge> <response>
+
+OPTIONS:
+   --config FILE, -c FILE   Load configAgent file from FILE
+   --logfile FILE, -l FILE  Load log file from FILE
+   --verbose, -v            Verbose output
+   --xml, -x                XML output
 ```
 
 The `-f` is used to supply a configuration file.  With the `-l` option the
@@ -135,7 +136,7 @@ instead of JSON.
 
 ### Configuration
 
-```
+```bash
 Timeout: 1000
 Tolerance: 0
 PoolSize: 0
@@ -168,25 +169,27 @@ supplied.
 
 ### Output
 
-```
-> ./orchestrator cname example.domain. challenge.example.domain. response.example.domain.
+```bash
+$ dvpp orchestrator -c orchestrator.yml cname example.domain. challenge.example.domain. response.example.domain.
 {
-    "success": true,
-    "response": "response.example.domain.",
-    "errors": [
-        "agent4: returned HTTP code 401"
-    ]
+	"success": false,
+	"response": "",
+	"errors": [
+		"agent2: received DNS response code 3",
+		"agent1: received DNS response code 3"
+	]
 }
 
 === or with xml ===
 
->  ./orchestrator -x cname example.domain. challenge.example.domain. response.example.domain.
+$ dvpp orchestrator -x -c orchestrator.yml cname example.domain. challenge.example.domain. response.example.domain.
 <result>
-    <success>true</success>
-    <response>response.example.domain.</response>
-    <errors>
-        <error>agent4: returned HTTP code 401</error>
-    </errors>
+	<success>false</success>
+	<response></response>
+	<errors>
+		<error>agent2: received DNS response code 3</error>
+		<error>agent1: received DNS response code 3</error>
+	</errors>
 </result>
 ```
 
@@ -196,7 +199,7 @@ In this example the tolerance was set to one.
 
 ## Methods
 
-Currently, only one method is allowed.
+Currently, only the DNS DCV method (verifying a CNAME record) is supported.
 
 ### CNAME
 
@@ -218,7 +221,7 @@ be found and a script to generate certificates.
 A simple tool is provided to generate certificates for the vantage point
 servers. The example `agent.cnf` can be edited to contain the wanted information.
 
-```
+```bash
 [dn]
 countryName = XX
 stateOrProvinceName = SomeState
@@ -248,7 +251,7 @@ certificates will be based on the filename of the configuration file.  So for
 `agent.key`.  Simply invoke the `make_cert.sh` and supply the configuration
 file:
 
-```
+```bash
 > ./make_cert.sh agent.cnf
 Generating RSA private key, 4096 bit long modulus
 ............................................................++

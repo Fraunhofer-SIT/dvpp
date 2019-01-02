@@ -1,15 +1,16 @@
-package main
+package orchestrator
 
 import (
 	"crypto/x509"
-	"flag"
 	"fmt"
-	"github.com/spf13/viper"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/spf13/viper"
+	"github.com/urfave/cli"
 )
 
 const (
@@ -19,9 +20,13 @@ const (
 	DefaultCertsDir  = "certs"
 )
 
-var paths = []string{"/etc/dv++", os.Getenv("HOME") + "/.dv++", "."}
+var paths = []string{"."}
 
-type Config struct {
+type config interface {
+	parseConfig(*cli.Context) error
+}
+
+type configOrchestrator struct {
 	XML       bool
 	Timeout   int
 	Tolerance int
@@ -31,8 +36,6 @@ type Config struct {
 	Agents    []Agent
 	Args      []string
 }
-
-var config Config
 
 func readCert(certFile string) ([]byte, error) {
 	log.Printf("Loading certificate %s.", certFile)
@@ -50,7 +53,7 @@ func readCerts(certsDir string) (*x509.CertPool, error) {
 
 	dir, err := os.Stat(certsDir)
 	if err != nil || !dir.IsDir() {
-		return nil, fmt.Errorf("Cannot open directory %s.", certsDir)
+		return nil, fmt.Errorf("cannot open directory %s", certsDir)
 	}
 
 	files, _ := ioutil.ReadDir(certsDir)
@@ -70,19 +73,18 @@ func readCerts(certsDir string) (*x509.CertPool, error) {
 	return certs, nil
 }
 
-func parseConfig() error {
-	xml := flag.Bool("x", false, "XML output")
-	verbose := flag.Bool("v", false, "Verbose output")
-	logfile := flag.String("l", "", "Logfile")
-	conffile := flag.String("f", "orchestrator.yml", "Config file")
-	flag.Parse()
+func (config *configOrchestrator) parseConfig(c *cli.Context) error {
+	xml := c.Bool("xml")
 
-	if !*verbose {
+	verbose := c.Bool("verbose")
+	if !verbose {
 		log.SetOutput(ioutil.Discard)
 	}
-	if *logfile != "" {
+
+	logfile := c.String("logfile")
+	if logfile != "" {
 		f, err := os.OpenFile(
-			*logfile,
+			logfile,
 			os.O_APPEND|os.O_CREATE|os.O_RDWR,
 			0666)
 		if err != nil {
@@ -90,8 +92,10 @@ func parseConfig() error {
 		}
 		log.SetOutput(f)
 	}
-	if *conffile != "" {
-		viper.SetConfigFile(*conffile)
+
+	conffile := c.String("conffile")
+	if conffile != "" {
+		viper.SetConfigFile(conffile)
 	} else {
 		viper.SetConfigName("orchestrator")
 
@@ -101,15 +105,9 @@ func parseConfig() error {
 
 	}
 
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr,
-			"orchestrator cname <domain> <challenge> <response>\n")
-	}
-
-	args := flag.Args()
-	if (len(args) != 4) || (args[0] != "cname") {
-		flag.Usage()
-		os.Exit(1)
+	args := c.Args()
+	if c.NArg() != 4 {
+		return fmt.Errorf("incorrect number of arguments specified: should be cname <domain> <challenge> <response>")
 	}
 
 	viper.SetDefault("timeout", DefaultTimeout)
@@ -122,8 +120,8 @@ func parseConfig() error {
 		return err
 	}
 
-	config = Config{
-		XML:       *xml,
+	*config = configOrchestrator{
+		XML:       xml,
 		Timeout:   viper.GetInt("timeout"),
 		Tolerance: viper.GetInt("tolerance"),
 		PoolSize:  viper.GetInt("poolsize"),
