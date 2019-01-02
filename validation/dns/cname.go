@@ -1,10 +1,12 @@
 package dns
 
 import (
-	"dv++/validation/messages"
 	"fmt"
-	mdns "github.com/miekg/dns"
+	"log"
 	"net"
+
+	"github.com/dvpp/dvpp/validation/messages"
+	mdns "github.com/miekg/dns"
 )
 
 type CNAMERequest struct {
@@ -53,6 +55,8 @@ func CNAMEValidation(req CNAMERequest, nameserver string) messages.Result {
 			},
 		}
 	}
+
+	log.Print(r.Answer)
 
 	for _, a := range r.Answer {
 		switch c := a.(type) {
